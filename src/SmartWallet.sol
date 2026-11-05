@@ -9,7 +9,12 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 contract SmartWallet is Account, SignerECDSA, ReentrancyGuard {
 
-    constructor(address intialOwner) SignerECDSA(intialOwner) {}
+    string public orgName;
+
+
+    constructor(string memory _orgName, address _initialOwner) SignerECDSA(_initialOwner) {
+        orgName = _orgName;
+    }
 
     receive() external payable override {}
 
