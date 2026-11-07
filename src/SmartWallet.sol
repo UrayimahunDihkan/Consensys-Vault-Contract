@@ -5,11 +5,16 @@ import {SignerECDSA} from "@openzeppelin/contracts/utils/cryptography/signers/Si
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 
-
-
 contract SmartWallet is Account, SignerECDSA, ReentrancyGuard {
 
-    constructor(address _initialOwner) SignerECDSA(_initialOwner) {}
+    string public orgName;
+
+    constructor(string memory _orgName,
+                address _initialOwner)
+        SignerECDSA(_initialOwner)
+    {
+        orgName = _orgName;
+    }
 
     receive() external payable override {}
 
@@ -22,7 +27,4 @@ contract SmartWallet is Account, SignerECDSA, ReentrancyGuard {
         (bool success, ) = target.call{ value: value } ( data );
         require(success, "Execution Failed");
     }
-
-
-
 }
