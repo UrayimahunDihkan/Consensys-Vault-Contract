@@ -16,6 +16,10 @@ contract SmartWallet is Account, SignerECDSA, ReentrancyGuard {
         orgName = _orgName;
     }
 
+    function setOrgName(string memory _newOrgName) external onlyEntryPointOrSelf {
+        orgName = _newOrgName;
+    }
+
     receive() external payable override {}
 
     function execute(address target, uint256 value, bytes calldata data)
