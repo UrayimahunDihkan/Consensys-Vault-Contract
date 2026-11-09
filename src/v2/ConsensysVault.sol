@@ -1,6 +1,6 @@
 pragma solidity ^0.8.24;
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 
 contract ConsensusWallet is Ownable, ReentrancyGuard {
@@ -15,7 +15,7 @@ contract ConsensusWallet is Ownable, ReentrancyGuard {
         orgName = _orgName;
     }
 
-    receive() external payable override {}
+    receive() external payable {}
 
 
     function setOrgName(string calldata _newOrgValue) external onlyOwner {
