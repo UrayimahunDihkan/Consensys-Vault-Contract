@@ -2,19 +2,19 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {SmartWallet} from "../src/v1/SmartWallet.sol";
+import {ContractAbstraction} from "../src/v1/ContractAbstraction.sol";
 import {PackedUserOperation} from "@openzeppelin/contracts/interfaces/IERC4337.sol";
 import {IEntryPointExtra} from "@openzeppelin/contracts/account/utils/ERC4337Utils.sol";
 
 contract SmartWalletSignatureTest is Test {
-    SmartWallet wallet;
+    ContractAbstraction wallet;
 
     uint256 ownerPrivateKey = 0xA11CE;
     address owner;
 
     function setUp() public {
         owner = vm.addr(ownerPrivateKey);
-        wallet = new SmartWallet("UYGHUR DAO", owner);
+        wallet = new ContractAbstraction("UYGHUR DAO", owner);
     }
 
     function testValidUserOpSignature() public {

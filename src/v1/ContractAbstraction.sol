@@ -5,7 +5,7 @@ import {SignerECDSA} from "@openzeppelin/contracts/utils/cryptography/signers/Si
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 
-contract SmartWallet is Account, SignerECDSA, ReentrancyGuard {
+contract ContractAbstraction is Account, SignerECDSA, ReentrancyGuard {
 
     string public orgName;
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
-import { SmartWallet } from "../../src/v1/SmartWallet.sol";
+import {ContractAbstraction} from "../../src/v1/ContractAbstraction.sol";
 
 contract SmartWalletScript is Script {
 
@@ -16,7 +16,7 @@ contract SmartWalletScript is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);
-        SmartWallet wallet = new SmartWallet(ORG_NAME, SMART_WALLET_OWNER);
+        ContractAbstraction wallet = new ContractAbstraction(ORG_NAME, SMART_WALLET_OWNER);
         console.log("SmartWallet deployed at:", address(wallet));
         vm.stopBroadcast();
     }
