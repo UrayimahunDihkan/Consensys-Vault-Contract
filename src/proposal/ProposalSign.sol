@@ -10,7 +10,7 @@ contract ProposalSign {
         address applicant;
         address[] signatures;
         Proposal proposal;
-        bool signed;
+        string[] infos;
     }
 
     enum Proposal {
@@ -24,23 +24,26 @@ contract ProposalSign {
 
     AddressSet.Set private signers;
 
-    mapping(bytes32 => SignatureInfo) private signatureMap;
-    bytes32[] private indexOfUnsignedProposals;
+    mapping(bytes32 => SignatureInfo) public signatureMap;
+    bytes32[] public indexOfUnsignedProposals;
 
 
-    // proposal
-    function propose(Proposal _proposal) public returns(bool) {
+    // proposal for changing org name
+    // signatureMap -> params: [ _newOrgName ]
+    function proposeOrgNameChange(string calldata _newOrgName) public returns(bool) {
 
-        bytes32 hash = getProposalHash(_proposal, msg.sender);
-        if(!signatureMap[hash].signed) {
+        bytes32 hash = getProposalHash(Proposal.ORG_NAME_CHANG, msg.sender);
+        if (signatureMap[hash].applicant != address(0)) {
             return false;
         }
 
+        string[] memory _infos = new string[](1);
+        _infos[0] = _newOrgName;
         signatureMap[hash] = SignatureInfo({
             applicant: msg.sender,
             signatures: new address[](0),
-            proposal: _proposal,
-            signed: false
+            proposal: Proposal.ORG_NAME_CHANG,
+            infos: _infos
         });
 
         indexOfUnsignedProposals.push(hash);
@@ -83,6 +86,10 @@ contract ProposalSign {
     // private methods
     function getProposalHash(Proposal _proposal, address _proposer) internal pure returns(bytes32) {
         return keccak256(abi.encode(_proposal, _proposer));
+    }
+
+    function getSignatureInfo(bytes32 hash) external view returns (SignatureInfo memory) {
+        return signatureMap[hash];
     }
 
 }
