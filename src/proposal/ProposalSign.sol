@@ -11,6 +11,7 @@ contract ProposalSign {
         address[] signatures;
         Proposal proposal;
         string[] infos;
+        bool signComplete; // signatures surpass threshold
     }
 
     enum Proposal {
@@ -19,13 +20,25 @@ contract ProposalSign {
         MEMBERSHIP
     }
 
-
     using AddressSet for AddressSet.Set; // the AddressSet.Set type allows you to
+
+    /*-------------------------storage---------------------------*/
 
     AddressSet.Set private signers;
 
     mapping(bytes32 => SignatureInfo) public signatureMap;
     bytes32[] public indexOfUnsignedProposals;
+
+
+
+    /*-------------------------storage---------------------------*/
+
+    constructor(address[] memory _initialSigners) {
+        for(uint256 i; i < _initialSigners.length; i++) {
+            signers.add(_initialSigners[i]);
+        }
+        signers.setThreshold(calculateThreshold(_initialSigners.length));
+    }
 
 
     // proposal for changing org name
@@ -43,7 +56,8 @@ contract ProposalSign {
             applicant: msg.sender,
             signatures: new address[](0),
             proposal: Proposal.ORG_NAME_CHANG,
-            infos: _infos
+            infos: _infos,
+            signComplete: false
         });
 
         indexOfUnsignedProposals.push(hash);
@@ -64,6 +78,20 @@ contract ProposalSign {
         }
 
         return sigInfo;
+    }
+
+    function signProposal(Proposal _proposal) public returns(bool) {
+
+        bytes32 hash = getProposalHash(_proposal, msg.sender);
+        SignatureInfo storage sigInfo = signatureMap[hash];
+        require(sigInfo.applicant != address(0), "This proposal doesn't exist");
+        sigInfo.signatures.push(msg.sender);
+
+        if (sigInfo.signatures.length >= signers.getThreshold()) {
+            sigInfo.signComplete = true;
+        }
+
+        return true;
     }
 
 
@@ -90,6 +118,10 @@ contract ProposalSign {
 
     function getSignatureInfo(bytes32 hash) external view returns (SignatureInfo memory) {
         return signatureMap[hash];
+    }
+
+    function calculateThreshold(uint256 howManySigners) internal pure returns (uint256) {
+        return (howManySigners + 1) / 2; // Round up
     }
 
 }

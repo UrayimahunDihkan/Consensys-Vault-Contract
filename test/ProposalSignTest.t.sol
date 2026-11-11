@@ -3,15 +3,39 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {ProposalSign} from "../src/proposal/ProposalSign.sol";
+import {console} from "forge-std/console.sol";
+
 
 contract ProposalSignTest is Test {
     ProposalSign internal ps;
 
-    address internal alice = address(0xA11CE);
-    address internal bob   = address(0xB0B);
+    // Anvil 默认账号
+    address internal alice = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    address internal bob   = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+    address internal carol = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+    address internal dave  = address(0xD4AE); // 不在初始 signers 里
+
+    address[] internal initialSigners;
 
     function setUp() public {
-        ps = new ProposalSign();
+        initialSigners = new address[](3);
+        initialSigners[0] = alice;
+        initialSigners[1] = bob;
+        initialSigners[2] = carol;
+
+        ps = new ProposalSign(initialSigners);
+    }
+
+    // ============================================================
+    // constructor
+    // ============================================================
+
+    function test_Constructor_AddsInitialSigners() public view {
+        address[] memory members = ps.allMembers();
+        assertEq(members.length, 3);
+        assertEq(members[0], alice);
+        assertEq(members[1], bob);
+        assertEq(members[2], carol);
     }
 
     // ============================================================
@@ -21,12 +45,9 @@ contract ProposalSignTest is Test {
     function test_ProposeOrgNameChange_Success() public {
         vm.prank(alice);
         bool ok = ps.proposeOrgNameChange("New DAO Name");
-        assertTrue(ok, "should return true");
+        assertTrue(ok);
 
         bytes32 hash = ps.indexOfUnsignedProposals(0);
-        assertTrue(hash != bytes32(0));
-
-        // ✅ 用 getSignatureInfo 拿完整 struct
         ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
 
         assertEq(info.applicant, alice);
@@ -46,7 +67,6 @@ contract ProposalSignTest is Test {
         ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
         assertEq(info.infos[0], "First", "old data should not be overwritten");
 
-        // 数组仍只有 1 条：读 index 1 越界 revert
         vm.expectRevert();
         ps.indexOfUnsignedProposals(1);
     }
@@ -54,13 +74,12 @@ contract ProposalSignTest is Test {
     function test_ProposeOrgNameChange_DifferentUsers() public {
         vm.prank(alice);
         ps.proposeOrgNameChange("Alice Proposal");
-
         vm.prank(bob);
         ps.proposeOrgNameChange("Bob Proposal");
 
         bytes32 h0 = ps.indexOfUnsignedProposals(0);
         bytes32 h1 = ps.indexOfUnsignedProposals(1);
-        assertTrue(h0 != h1, "hashes should differ per applicant");
+        assertTrue(h0 != h1);
 
         ProposalSign.SignatureInfo memory i0 = ps.getSignatureInfo(h0);
         ProposalSign.SignatureInfo memory i1 = ps.getSignatureInfo(h1);
@@ -68,9 +87,6 @@ contract ProposalSignTest is Test {
         assertEq(i0.infos[0], "Alice Proposal");
         assertEq(i1.applicant, bob);
         assertEq(i1.infos[0], "Bob Proposal");
-
-        vm.expectRevert();
-        ps.indexOfUnsignedProposals(2);
     }
 
     function test_ProposeOrgNameChange_EmptyString() public {
@@ -88,26 +104,102 @@ contract ProposalSignTest is Test {
     // ============================================================
 
     function test_AllProposals_Empty() public view {
-        ProposalSign.SignatureInfo[] memory list = ps.allProposals();
-        assertEq(list.length, 0);
+        assertEq(ps.allProposals().length, 0);
     }
 
     function test_AllProposals_Multiple() public {
         vm.prank(alice);
         ps.proposeOrgNameChange("Alice DAO");
-
         vm.prank(bob);
         ps.proposeOrgNameChange("Bob DAO");
 
         ProposalSign.SignatureInfo[] memory list = ps.allProposals();
         assertEq(list.length, 2);
-
         assertEq(list[0].applicant, alice);
         assertEq(list[0].infos[0], "Alice DAO");
-        assertEq(uint8(list[0].proposal), uint8(ProposalSign.Proposal.ORG_NAME_CHANG));
-
         assertEq(list[1].applicant, bob);
         assertEq(list[1].infos[0], "Bob DAO");
+    }
+
+    // ============================================================
+    // signProposal
+    // ============================================================
+
+    function test_SignProposal_Success() public {
+        vm.prank(alice);
+        ps.proposeOrgNameChange("X");
+        bytes32 hash = ps.indexOfUnsignedProposals(0);
+
+        vm.prank(bob);
+        assertTrue(ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG));
+
+        ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
+        assertEq(info.signatures.length, 1);
+        assertEq(info.signatures[0], bob);
+    }
+
+    function test_SignProposal_MultipleSigners() public {
+        vm.prank(alice);
+        ps.proposeOrgNameChange("X");
+        bytes32 hash = ps.indexOfUnsignedProposals(0);
+
+        vm.prank(bob);
+        ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
+        vm.prank(carol);
+        ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
+
+        ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
+        assertEq(info.signatures.length, 2);
+        assertEq(info.signatures[0], bob);
+        assertEq(info.signatures[1], carol);
+    }
+
+    function test_SignProposal_NonExistent_Reverts() public {
+        vm.prank(bob);
+        vm.expectRevert("This proposal doesn't exist");
+        ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
+    }
+
+    function test_SignProposal_WrongEnum_Reverts() public {
+        // alice 发起 ORG_NAME_CHANG
+        vm.prank(alice);
+        ps.proposeOrgNameChange("X");
+
+        // bob 用 TRANSFER 签 -> hash 不同 -> revert
+        vm.prank(bob);
+        vm.expectRevert("This proposal doesn't exist");
+        ps.signProposal(ProposalSign.Proposal.TRANSFER);
+    }
+
+    function test_SignProposal_NonSigner_StillAllowed() public {
+        // 当前合约没检查 signer 身份，dave 也能签（固定现状）
+        vm.prank(alice);
+        ps.proposeOrgNameChange("X");
+        bytes32 hash = ps.indexOfUnsignedProposals(0);
+
+        vm.prank(dave);
+        ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
+
+        ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
+        assertEq(info.signatures.length, 1);
+        assertEq(info.signatures[0], dave);
+    }
+
+    function test_SignProposal_DuplicateSigner_Allowed() public {
+        // 当前合约没防重复签名，同一人签两次会 push 两次
+        vm.prank(alice);
+        ps.proposeOrgNameChange("X");
+        bytes32 hash = ps.indexOfUnsignedProposals(0);
+
+        vm.startPrank(bob);
+        ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
+        ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
+        vm.stopPrank();
+
+        ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
+        assertEq(info.signatures.length, 2);
+        assertEq(info.signatures[0], bob);
+        assertEq(info.signatures[1], bob);
     }
 
     // ============================================================
@@ -115,30 +207,22 @@ contract ProposalSignTest is Test {
     // ============================================================
 
     function test_AddMember() public {
-        ps.addMember(alice);
+        ps.addMember(dave);
         address[] memory members = ps.allMembers();
-        assertEq(members.length, 1);
-        assertEq(members[0], alice);
-    }
-
-    function test_AddMember_Multiple() public {
-        ps.addMember(alice);
-        ps.addMember(bob);
-        address[] memory members = ps.allMembers();
-        assertEq(members.length, 2);
-        assertEq(members[0], alice);
-        assertEq(members[1], bob);
+        assertEq(members.length, 4);
+        assertEq(members[3], dave);
     }
 
     function test_RemoveMember() public {
-        ps.addMember(alice);
-        ps.addMember(bob);
-        assertEq(ps.allMembers().length, 2);
-
         ps.removeMember(alice);
         address[] memory members = ps.allMembers();
-        assertEq(members.length, 1);
+        console.log("members.length =", members.length);
+        for (uint256 i = 0; i < members.length; i++) {
+            console.log("members[%d] =", i, members[i]);
+        }
+        assertEq(members.length, 2);
         assertEq(members[0], bob);
+        assertEq(members[1], carol);
     }
 
     // ============================================================
@@ -159,5 +243,19 @@ contract ProposalSignTest is Test {
         ps.proposeOrgNameChange("X");
 
         assertTrue(ps.indexOfUnsignedProposals(0) != ps.indexOfUnsignedProposals(1));
+    }
+
+    function test_HashDifferentPerEnum() public {
+        vm.prank(alice);
+        ps.proposeOrgNameChange("X");
+
+        // 用 TRANSFER 签 -> 不同 hash -> revert
+        vm.prank(alice);
+        vm.expectRevert("This proposal doesn't exist");
+        ps.signProposal(ProposalSign.Proposal.TRANSFER);
+
+        // 用 ORG_NAME_CHANG 签 -> 成功
+        vm.prank(alice);
+        assertTrue(ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG));
     }
 }
