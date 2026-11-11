@@ -11,7 +11,7 @@ contract MultisignDeploy is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
         ProposalSign proposalSign = new ProposalSign();
-        console.log("Multisign deployed at:", address(proposalSign));
+        console.log("Proposal sign contract deployed at:", address(proposalSign));
 
         vm.stopBroadcast();
 
