@@ -25,7 +25,8 @@ contract DeployUUPSProxyScript is Script {
         // 部署自定义 UUPS 代理
         bytes memory initData = abi.encodeWithSelector(
             ConsensusWallet.initialize.selector,
-            "UYGHUR DAO"
+            "UYGHUR DAO",
+            vm.envUint("PROPOSAL_SIGN_CONTRACT")
         );
         UUPSProxy proxy = new UUPSProxy(address(implementation), initData);
         console.log("UUPSProxy address:", address(proxy));

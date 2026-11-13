@@ -34,7 +34,7 @@ contract ProposalSign {
     AddressSet.Set private signers;
 
     mapping(bytes32 => SignatureInfo) public signatureMap;
-    bytes32[] public indexOfUnsignedProposals;
+    bytes32[] public indexOfUnexecutedProposals;
 
 
 
@@ -67,21 +67,21 @@ contract ProposalSign {
             execFlow: ExecFlow.PendingSign
         });
 
-        indexOfUnsignedProposals.push(hash);
+        indexOfUnexecutedProposals.push(hash);
 
         return true;
     }
 
     function allProposals() public view returns(SignatureInfo[] memory) {
 
-        uint256 proposalLen = indexOfUnsignedProposals.length;
+        uint256 proposalLen = indexOfUnexecutedProposals.length;
         if (proposalLen <= 0) {
             return new SignatureInfo[](0);
         }
 
         SignatureInfo[] memory sigInfo = new SignatureInfo[](proposalLen);
         for (uint256 i=0; i < proposalLen; i++) {
-            sigInfo[i]=signatureMap[indexOfUnsignedProposals[i]];
+            sigInfo[i]=signatureMap[indexOfUnexecutedProposals[i]];
         }
 
         return sigInfo;
@@ -106,6 +106,7 @@ contract ProposalSign {
 
     // membership
     function addMember(address _addr) public {
+        require(indexOfUnexecutedProposals.length == 0, "Still remains unexecuted proposals");
         signers.add(_addr);  // Elegant call: directly invoke the method on the variable!
     }
     function removeMember(address _addr) public {
@@ -129,6 +130,31 @@ contract ProposalSign {
 
     function calculateThreshold(uint256 howManySigners) internal pure returns (uint256) {
         return (howManySigners + 1) / 2; // Round up
+    }
+
+
+
+    // externals
+    function markAfterExecuted(Proposal _proposal) external returns (bool)  {
+
+        bytes32 hash = getProposalHash(_proposal, signers.getAll());
+
+        SignatureInfo storage sigInfo = signatureMap[hash];
+        if (sigInfo.execFlow != ExecFlow.SignCompleted) {
+            return false;
+        }
+        sigInfo.execFlow = ExecFlow.Executed;
+
+        uint256 len = indexOfUnexecutedProposals.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (indexOfUnexecutedProposals[i] == hash) {
+                indexOfUnexecutedProposals[i] = indexOfUnexecutedProposals[len - 1];
+                indexOfUnexecutedProposals.pop();
+                break;
+            }
+        }
+
+        return true;
     }
 
 }

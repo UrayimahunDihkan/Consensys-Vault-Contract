@@ -47,7 +47,7 @@ contract ProposalSignTest is Test {
         bool ok = ps.proposeOrgNameChange("New DAO Name");
         assertTrue(ok);
 
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
         ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
 
         assertEq(info.applicant, alice);
@@ -63,12 +63,12 @@ contract ProposalSignTest is Test {
         assertFalse(ps.proposeOrgNameChange("Second"));
         vm.stopPrank();
 
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
         ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
         assertEq(info.infos[0], "First", "old data should not be overwritten");
 
         vm.expectRevert();
-        ps.indexOfUnsignedProposals(1);
+        ps.indexOfUnexecutedProposals(1);
     }
 
     function test_ProposeOrgNameChange_DifferentUsers() public {
@@ -77,8 +77,8 @@ contract ProposalSignTest is Test {
         vm.prank(bob);
         ps.proposeOrgNameChange("Bob Proposal");
 
-        bytes32 h0 = ps.indexOfUnsignedProposals(0);
-        bytes32 h1 = ps.indexOfUnsignedProposals(1);
+        bytes32 h0 = ps.indexOfUnexecutedProposals(0);
+        bytes32 h1 = ps.indexOfUnexecutedProposals(1);
         assertTrue(h0 != h1);
 
         ProposalSign.SignatureInfo memory i0 = ps.getSignatureInfo(h0);
@@ -93,7 +93,7 @@ contract ProposalSignTest is Test {
         vm.prank(alice);
         assertTrue(ps.proposeOrgNameChange(""));
 
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
         ProposalSign.SignatureInfo memory info = ps.getSignatureInfo(hash);
         assertEq(info.infos.length, 1);
         assertEq(info.infos[0], "");
@@ -128,7 +128,7 @@ contract ProposalSignTest is Test {
     function test_SignProposal_Success() public {
         vm.prank(alice);
         ps.proposeOrgNameChange("X");
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
 
         vm.prank(bob);
         assertTrue(ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG));
@@ -141,7 +141,7 @@ contract ProposalSignTest is Test {
     function test_SignProposal_MultipleSigners() public {
         vm.prank(alice);
         ps.proposeOrgNameChange("X");
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
 
         vm.prank(bob);
         ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
@@ -175,7 +175,7 @@ contract ProposalSignTest is Test {
         // 当前合约没检查 signer 身份，dave 也能签（固定现状）
         vm.prank(alice);
         ps.proposeOrgNameChange("X");
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
 
         vm.prank(dave);
         ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
@@ -189,7 +189,7 @@ contract ProposalSignTest is Test {
         // 当前合约没防重复签名，同一人签两次会 push 两次
         vm.prank(alice);
         ps.proposeOrgNameChange("X");
-        bytes32 hash = ps.indexOfUnsignedProposals(0);
+        bytes32 hash = ps.indexOfUnexecutedProposals(0);
 
         vm.startPrank(bob);
         ps.signProposal(ProposalSign.Proposal.ORG_NAME_CHANG);
@@ -242,7 +242,7 @@ contract ProposalSignTest is Test {
         vm.prank(bob);
         ps.proposeOrgNameChange("X");
 
-        assertTrue(ps.indexOfUnsignedProposals(0) != ps.indexOfUnsignedProposals(1));
+        assertTrue(ps.indexOfUnexecutedProposals(0) != ps.indexOfUnexecutedProposals(1));
     }
 
     function test_HashDifferentPerEnum() public {
