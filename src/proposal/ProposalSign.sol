@@ -70,7 +70,7 @@ contract ProposalSign {
         });
 
         hashOfUnexecutedProposals.push(hash);
-        proposalIndex[hash] = hashOfUnexecutedProposals.length + 1;
+        proposalIndex[hash] = hashOfUnexecutedProposals.length;
 
         return true;
     }
@@ -91,6 +91,8 @@ contract ProposalSign {
     }
 
     function signProposal(Proposal _proposal) public returns(bool) {
+
+        require(signers.contains(msg.sender), "Not a signer");
 
         bytes32 hash = getProposalHash(_proposal, signers.getAll());
         SignatureInfo storage sigInfo = signatureMap[hash];
