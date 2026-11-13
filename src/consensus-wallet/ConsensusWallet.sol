@@ -46,4 +46,14 @@ contract ConsensusWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
     // 只需要又这个就行 (主要是验证onlyOwner)
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+
+
+
+
+    // setter
+    function setProposalSignAddress(address _newAddress) external onlyOwner {
+        require(_newAddress != address(0), "Invalid address");
+        proposalSignAddress = _newAddress;
+    }
+
 }
