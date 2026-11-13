@@ -6,12 +6,19 @@ import {AddressSet} from "../libraries/AddressSet.sol";
 
 contract ProposalSign {
 
+    enum ExecFlow {
+        PendingSign,
+        SignPartiallyCompleted,
+        SignCompleted,
+        Executed
+    }
+
     struct SignatureInfo {
         address applicant;
         address[] signatures;
         Proposal proposal;
         string[] infos;
-        bool signComplete; // signatures surpass threshold
+        ExecFlow execFlow;
     }
 
     enum Proposal {
@@ -45,7 +52,7 @@ contract ProposalSign {
     // signatureMap -> params: [ _newOrgName ]
     function proposeOrgNameChange(string calldata _newOrgName) public returns(bool) {
 
-        bytes32 hash = getProposalHash(Proposal.ORG_NAME_CHANG, msg.sender);
+        bytes32 hash = getProposalHash(Proposal.ORG_NAME_CHANG, signers.getAll());
         if (signatureMap[hash].applicant != address(0)) {
             return false;
         }
@@ -57,7 +64,7 @@ contract ProposalSign {
             signatures: new address[](0),
             proposal: Proposal.ORG_NAME_CHANG,
             infos: _infos,
-            signComplete: false
+            execFlow: ExecFlow.PendingSign
         });
 
         indexOfUnsignedProposals.push(hash);
@@ -82,14 +89,14 @@ contract ProposalSign {
 
     function signProposal(Proposal _proposal) public returns(bool) {
 
-        bytes32 hash = getProposalHash(_proposal, msg.sender);
+        bytes32 hash = getProposalHash(_proposal, signers.getAll());
         SignatureInfo storage sigInfo = signatureMap[hash];
         require(sigInfo.applicant != address(0), "This proposal doesn't exist");
         sigInfo.signatures.push(msg.sender);
 
-        if (sigInfo.signatures.length >= signers.getThreshold()) {
-            sigInfo.signComplete = true;
-        }
+        sigInfo.execFlow = sigInfo.signatures.length >= signers.getThreshold() ?
+                                    ExecFlow.SignCompleted :
+                                    ExecFlow.SignPartiallyCompleted;
 
         return true;
     }
@@ -112,8 +119,8 @@ contract ProposalSign {
 
 
     // private methods
-    function getProposalHash(Proposal _proposal, address _proposer) internal pure returns(bytes32) {
-        return keccak256(abi.encode(_proposal, _proposer));
+    function getProposalHash(Proposal _proposal, address[] memory _signers) internal pure returns(bytes32) {
+        return keccak256(abi.encode(_proposal, _signers));
     }
 
     function getSignatureInfo(bytes32 hash) external view returns (SignatureInfo memory) {
