@@ -35,7 +35,7 @@ library AddressSet {
         address lastAddress = self.values[lastIndex];
 
         self.values[toDeleteIndex] = lastAddress;
-        self.indexes[lastAddress] = toDeleteIndex;
+        self.indexes[lastAddress] = toDeleteIndex + 1;
 
         self.values.pop();
         delete self.indexes[value];
