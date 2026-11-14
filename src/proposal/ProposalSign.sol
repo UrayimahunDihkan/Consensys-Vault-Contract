@@ -17,7 +17,14 @@ contract ProposalSign {
         address applicant;
         address[] signatures;
         Proposal proposal;
+        // name change
         string[] infos;
+        // transfer
+        address transferTo;
+        address transferCurrency;
+        uint256 transferAmount;
+
+
         ExecFlow execFlow;
     }
 
@@ -55,7 +62,7 @@ contract ProposalSign {
     function proposeOrgNameChange(string calldata _newOrgName) public returns(bool) {
 
         bytes32 hash = getProposalHash(Proposal.ORG_NAME_CHANG, signers.getAll());
-        if (signatureMap[hash].applicant != address(0)) {
+        if (signatureMap[hash].applicant != address(0) && signatureMap[hash].execFlow != ExecFlow.Executed) {
             return false;
         }
 
@@ -66,6 +73,36 @@ contract ProposalSign {
             signatures: new address[](0),
             proposal: Proposal.ORG_NAME_CHANG,
             infos: _infos,
+            execFlow: ExecFlow.PendingSign,
+            transferTo: address(0),
+            transferCurrency: address(0),
+            transferAmount: 0
+        });
+
+        hashOfUnexecutedProposals.push(hash);
+        proposalIndex[hash] = hashOfUnexecutedProposals.length;
+
+        return true;
+    }
+
+    function proposeTransfer(address _to, address _currency, uint256 _amount) public returns(bool)  {
+
+        require(_to != address(0), "address can not be empty");
+        require(_amount > 0, "amount should more than 0");
+
+        bytes32 hash = getProposalHash(Proposal.TRANSFER, signers.getAll());
+        if (signatureMap[hash].applicant != address(0) && signatureMap[hash].execFlow != ExecFlow.Executed) {
+            return false;
+        }
+
+        signatureMap[hash] = SignatureInfo({
+            applicant: msg.sender,
+            signatures: new address[](0),
+            proposal: Proposal.TRANSFER,
+            infos: new string[](0),
+            transferTo: _to,
+            transferCurrency: _currency,
+            transferAmount: _amount,
             execFlow: ExecFlow.PendingSign
         });
 
@@ -74,6 +111,7 @@ contract ProposalSign {
 
         return true;
     }
+
 
     function allProposals() public view returns(SignatureInfo[] memory) {
 
