@@ -16,7 +16,7 @@ contract ConsensusWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
 
     receive() external payable {}
 
-    function setOrgName(string calldata _newOrgValue) external {
+    function setOrgName(string calldata _newOrgValue) nonReentrant external {
         orgName = _newOrgValue;
         // Proposal.ORG_NAME_CHANG -> 0
         bool success = IProposalSign(proposalSignAddress).markAfterExecuted(0);

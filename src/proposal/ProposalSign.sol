@@ -188,11 +188,51 @@ contract ProposalSign {
     }
 
 
+    // exec
+//    function execTransfer() public returns(bool) {
+//
+//        // to do
+//
+//        return true;
+//    }
+
+    function execMembership() public returns(bool) {
+        bytes32 hash = getProposalHash(Proposal.MEMBERSHIP, signers.getAll());
+        SignatureInfo storage sigInfo = signatureMap[hash];
+        require(sigInfo.execFlow == ExecFlow.SignCompleted, "Sign not completed");
+
+        if (sigInfo.membershipProposal == MembershipProposal.ADD_MEMBER) {
+            require(!signers.contains(sigInfo.membershipAddr), "member already exist in signers list");
+            addMember(sigInfo.membershipAddr);
+        } else if (sigInfo.membershipProposal == MembershipProposal.DELETE_MEMBER) {
+            require(signers.contains(sigInfo.membershipAddr), "member not exist in signers list");
+            removeMember(sigInfo.membershipAddr);
+        }
+
+        sigInfo.execFlow = ExecFlow.Executed;
+
+        uint256 indexPlusOne = proposalIndex[hash];
+        if (indexPlusOne > 0) {
+            uint256 indexToRemove = indexPlusOne - 1;
+            uint256 lastIndex = hashOfUnexecutedProposals.length - 1;
+
+            if (indexToRemove != lastIndex) {
+                bytes32 lastHash = hashOfUnexecutedProposals[lastIndex];
+                hashOfUnexecutedProposals[indexToRemove] = lastHash;
+                proposalIndex[lastHash] = indexToRemove + 1;
+            }
+
+            hashOfUnexecutedProposals.pop();
+            delete proposalIndex[hash];
+        }
+
+        return true;
+    }
+
 
 
     // membership
     function addMember(address _addr) public {
-        require(hashOfUnexecutedProposals.length == 0, "Still remains unexecuted proposals");
         signers.add(_addr);  // Elegant call: directly invoke the method on the variable!
     }
     function removeMember(address _addr) public {
