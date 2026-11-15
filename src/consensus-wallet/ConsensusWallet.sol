@@ -26,14 +26,14 @@ contract ConsensusWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
     }
 
     // core
-//    function execute(address target, uint256 value, bytes calldata data)
-//        external
-//        payable
-//    nonReentrant
-//    {
-//        (bool success, ) = target.call{ value: value } ( data );
-//        require(success, "Execution Failed");
-//    }
+    function execute(address target, uint256 value, bytes calldata data)
+        external
+        payable
+    nonReentrant
+    {
+        (bool success, ) = target.call{ value: value } ( data );
+        require(success, "Execution Failed");
+    }
 
 
     // 从V2开始这个不用

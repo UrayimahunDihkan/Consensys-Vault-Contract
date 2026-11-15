@@ -2,9 +2,15 @@
 pragma solidity ^0.8.24;
 
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {AddressSet} from "../libraries/AddressSet.sol";
 
-contract ProposalSign {
+
+interface IConsensusWallet {
+    function execute(address target, uint256 value, bytes calldata data) external payable;
+}
+
+contract ProposalSign is ReentrancyGuard {
 
     enum ExecFlow {
         PendingSign,
@@ -46,6 +52,7 @@ contract ProposalSign {
 
     /*-------------------------storage---------------------------*/
 
+    address public consensusWalletAddress;
     AddressSet.Set private signers;
 
     mapping(bytes32 => SignatureInfo) public signatureMap;
@@ -188,13 +195,53 @@ contract ProposalSign {
     }
 
 
-    // exec
-//    function execTransfer() public returns(bool) {
-//
-//        // to do
-//
-//        return true;
-//    }
+    /*-------------------------------- exec ---------------------------------*/
+
+    function execTransfer() nonReentrant public returns(bool) {
+
+        bytes32 hash = getProposalHash(Proposal.TRANSFER, signers.getAll());
+        SignatureInfo storage sigInfo = signatureMap[hash];
+        require(sigInfo.execFlow == ExecFlow.SignCompleted, "Sign not completed");
+
+        sigInfo.execFlow = ExecFlow.Executed;
+
+        if (sigInfo.transferCurrency == address(0)) {
+            // base coin transfer
+            IConsensusWallet(consensusWalletAddress).execute{value: 0}(
+                sigInfo.transferTo,
+                sigInfo.transferAmount,
+                ""
+            );
+        } else {
+            bytes memory data = abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                sigInfo.transferTo,
+                sigInfo.transferAmount
+            );
+            IConsensusWallet(consensusWalletAddress).execute{value: 0}(
+                sigInfo.transferCurrency,
+                0,
+                data
+            );
+        }
+
+        uint256 indexPlusOne = proposalIndex[hash];
+        if (indexPlusOne > 0) {
+            uint256 indexToRemove = indexPlusOne - 1;
+            uint256 lastIndex = hashOfUnexecutedProposals.length - 1;
+
+            if (indexToRemove != lastIndex) {
+                bytes32 lastHash = hashOfUnexecutedProposals[lastIndex];
+                hashOfUnexecutedProposals[indexToRemove] = lastHash;
+                proposalIndex[lastHash] = indexToRemove + 1;
+            }
+
+            hashOfUnexecutedProposals.pop();
+            delete proposalIndex[hash];
+        }
+
+        return true;
+    }
 
     function execMembership() public returns(bool) {
         bytes32 hash = getProposalHash(Proposal.MEMBERSHIP, signers.getAll());
@@ -230,6 +277,36 @@ contract ProposalSign {
     }
 
 
+    function markAfterExecuted(Proposal _proposal) external returns (bool)  {
+        bytes32 hash = getProposalHash(_proposal, signers.getAll());
+        SignatureInfo storage sigInfo = signatureMap[hash];
+
+        if (sigInfo.execFlow != ExecFlow.SignCompleted) {
+            return false;
+        }
+        sigInfo.execFlow = ExecFlow.Executed;
+
+        uint256 indexPlusOne = proposalIndex[hash];
+        if (indexPlusOne > 0) {
+            uint256 indexToRemove = indexPlusOne - 1;
+            uint256 lastIndex = hashOfUnexecutedProposals.length - 1;
+
+            if (indexToRemove != lastIndex) {
+                bytes32 lastHash = hashOfUnexecutedProposals[lastIndex];
+                hashOfUnexecutedProposals[indexToRemove] = lastHash;
+                proposalIndex[lastHash] = indexToRemove + 1;
+            }
+
+            hashOfUnexecutedProposals.pop();
+            delete proposalIndex[hash];
+        }
+
+        return true;
+    }
+
+    /*-------------------------------- exec ---------------------------------*/
+
+
 
     // membership
     function addMember(address _addr) public {
@@ -262,32 +339,9 @@ contract ProposalSign {
     }
 
 
-
-    // externals
-    function markAfterExecuted(Proposal _proposal) external returns (bool)  {
-        bytes32 hash = getProposalHash(_proposal, signers.getAll());
-        SignatureInfo storage sigInfo = signatureMap[hash];
-
-        if (sigInfo.execFlow != ExecFlow.SignCompleted) {
-            return false;
-        }
-        sigInfo.execFlow = ExecFlow.Executed;
-
-        uint256 indexPlusOne = proposalIndex[hash];
-        if (indexPlusOne > 0) {
-            uint256 indexToRemove = indexPlusOne - 1;
-            uint256 lastIndex = hashOfUnexecutedProposals.length - 1;
-
-            if (indexToRemove != lastIndex) {
-                bytes32 lastHash = hashOfUnexecutedProposals[lastIndex];
-                hashOfUnexecutedProposals[indexToRemove] = lastHash;
-                proposalIndex[lastHash] = indexToRemove + 1;
-            }
-
-            hashOfUnexecutedProposals.pop();
-            delete proposalIndex[hash];
-        }
-
+    // set
+    function setConsensusWalletAddress(address _consensusWalletAddress) public returns(bool) {
+        consensusWalletAddress = _consensusWalletAddress;
         return true;
     }
 
