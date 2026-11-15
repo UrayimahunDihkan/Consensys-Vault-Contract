@@ -13,6 +13,18 @@ contract ProposalSign {
         Executed
     }
 
+    enum Proposal {
+        ORG_NAME_CHANG,
+        TRANSFER,
+        MEMBERSHIP
+    }
+
+    enum MembershipProposal {
+        ADD_MEMBER,
+        DELETE_MEMBER,
+        NOTHING
+    }
+
     struct SignatureInfo {
         address applicant;
         address[] signatures;
@@ -23,15 +35,11 @@ contract ProposalSign {
         address transferTo;
         address transferCurrency;
         uint256 transferAmount;
-
+        // membership
+        address membershipAddr;
+        MembershipProposal membershipProposal;
 
         ExecFlow execFlow;
-    }
-
-    enum Proposal {
-        ORG_NAME_CHANG,
-        TRANSFER,
-        MEMBERSHIP
     }
 
     using AddressSet for AddressSet.Set; // the AddressSet.Set type allows you to
@@ -76,7 +84,40 @@ contract ProposalSign {
             execFlow: ExecFlow.PendingSign,
             transferTo: address(0),
             transferCurrency: address(0),
-            transferAmount: 0
+            transferAmount: 0,
+            membershipAddr: address(0),
+            membershipProposal: MembershipProposal.NOTHING
+        });
+
+        hashOfUnexecutedProposals.push(hash);
+        proposalIndex[hash] = hashOfUnexecutedProposals.length;
+
+        return true;
+    }
+
+    function proposeMembership(address _member, MembershipProposal _membershipProposal) public returns(bool) {
+
+        require(_member!=address(0), "_member can not be empty");
+        if (_membershipProposal == MembershipProposal.DELETE_MEMBER) {
+            require(contains(_member), "the member you're deleting is not in signers list");
+        }
+
+        bytes32 hash = getProposalHash(Proposal.MEMBERSHIP, signers.getAll());
+        if (signatureMap[hash].applicant != address(0) && signatureMap[hash].execFlow != ExecFlow.Executed) {
+            return false;
+        }
+
+        signatureMap[hash] = SignatureInfo({
+            applicant: msg.sender,
+            signatures: new address[](0),
+            proposal: Proposal.MEMBERSHIP,
+            membershipAddr: _member,
+            membershipProposal: _membershipProposal,
+            infos: new string[](0),
+            transferTo: address(0),
+            transferCurrency: address(0),
+            transferAmount: 0,
+            execFlow: ExecFlow.PendingSign
         });
 
         hashOfUnexecutedProposals.push(hash);
@@ -103,6 +144,8 @@ contract ProposalSign {
             transferTo: _to,
             transferCurrency: _currency,
             transferAmount: _amount,
+            membershipAddr: address(0),
+            membershipProposal: MembershipProposal.NOTHING,
             execFlow: ExecFlow.PendingSign
         });
 
@@ -157,6 +200,9 @@ contract ProposalSign {
     }
     function allMembers() public view returns(address[] memory) {
         return signers.getAll();
+    }
+    function contains(address _signer) public view returns(bool) {
+        return signers.contains(_signer);
     }
 
 
