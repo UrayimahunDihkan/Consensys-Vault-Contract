@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {AddressSet} from "../libraries/AddressSet.sol";
 
 
