@@ -213,12 +213,13 @@ contract ProposalSign is ReentrancyGuard {
                 ""
             );
         } else {
+            // ERC20 transfer
             bytes memory data = abi.encodeWithSignature(
                 "transfer(address,uint256)",
                 sigInfo.transferTo,
                 sigInfo.transferAmount
             );
-            IConsensusWallet(consensusWalletAddress).execute{value: 0}(
+            IConsensusWallet(consensusWalletAddress).execute{value: 0} (
                 sigInfo.transferCurrency,
                 0,
                 data
