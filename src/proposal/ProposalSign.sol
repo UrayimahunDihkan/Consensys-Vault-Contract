@@ -311,9 +311,11 @@ contract ProposalSign is ReentrancyGuard {
     // membership
     function addMember(address _addr) public {
         signers.add(_addr);  // Elegant call: directly invoke the method on the variable!
+        signers.setThreshold(calculateThreshold(signers.length()));
     }
     function removeMember(address _addr) public {
         signers.remove(_addr);
+        signers.setThreshold(calculateThreshold(signers.length()));
     }
     function allMembers() public view returns(address[] memory) {
         return signers.getAll();
